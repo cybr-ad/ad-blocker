@@ -47,7 +47,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
     /* TOP CYBER BAR */
     .topbar {
-      background: #020305;
+      background: #000000;
       border-bottom: 1px solid var(--card-border);
       padding: 12px 24px;
       display: flex;
@@ -106,8 +106,8 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       display: flex;
       align-items: center;
       gap: 16px;
-      background: #070a12;
-      border: 1px solid #1a253a;
+      background: #000000;
+      border: 1px solid #181818;
       border-radius: 999px;
       padding: 6px 16px;
       font-family: var(--font-mono);
@@ -122,7 +122,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
     /* NAVIGATION TABS */
     .navbar {
-      background: #020305;
+      background: #000000;
       border-bottom: 1px solid var(--card-border);
       display: flex;
       padding: 0 24px;
@@ -269,7 +269,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       align-items: center;
     }
     .cyber-input {
-      background: #04060a;
+      background: #000000;
       border: 1px solid var(--card-border);
       border-radius: 6px;
       color: var(--text);
@@ -283,7 +283,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       box-shadow: 0 0 10px rgba(0, 255, 157, 0.2);
     }
     .cyber-btn {
-      background: #0c121e;
+      background: #040404;
       border: 1px solid var(--card-border);
       color: var(--text-dim);
       padding: 8px 14px;
@@ -297,9 +297,9 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       gap: 6px;
     }
     .cyber-btn:hover {
-      background: #141e30;
+      background: #111111;
       color: var(--text);
-      border-color: #243552;
+      border-color: #282828;
     }
     .cyber-btn.active {
       background: var(--accent-green);
@@ -351,7 +351,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       text-align: left;
     }
     th {
-      background: #04060a;
+      background: #000000;
       padding: 12px 14px;
       color: var(--text-muted);
       font-weight: 700;
@@ -362,7 +362,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     }
     td {
       padding: 12px 14px;
-      border-bottom: 1px solid #0c121e;
+      border-bottom: 1px solid #101010;
     }
     tr:hover td {
       background: rgba(255, 255, 255, 0.02);
@@ -420,7 +420,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
     /* MINI PROGRESS BARS */
     .bar-bg {
-      background: #101624;
+      background: #111111;
       border-radius: 999px;
       height: 6px;
       width: 80px;
@@ -440,7 +440,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
        ========================================================================= */
     .terminal-box {
       background: #000000;
-      border: 1px solid #142032;
+      border: 1px solid #161616;
       border-radius: var(--radius);
       box-shadow: 0 0 30px rgba(0, 0, 0, 0.9), inset 0 0 20px rgba(0, 229, 255, 0.03);
       overflow: hidden;
@@ -449,8 +449,8 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       height: 620px;
     }
     .terminal-header {
-      background: #05080e;
-      border-bottom: 1px solid #142032;
+      background: #000000;
+      border-bottom: 1px solid #141414;
       padding: 10px 16px;
       display: flex;
       justify-content: space-between;
@@ -525,7 +525,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
        ========================================================================= */
     .side-inspector {
       width: 420px;
-      background: #04060a;
+      background: #000000;
       border-left: 1px solid var(--card-border);
       position: fixed;
       top: 0;
@@ -612,6 +612,39 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         </div>
         <div class="brand-sub">Hardware DNS Sinkhole &bull; IP: 107.7.97.95</div>
       </div>
+    </div>
+
+    <!-- TOP QUICK ACTIONS & SNOOZE CONTROLS -->
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+      <!-- Active Snooze Pill -->
+      <div id="snooze-badge" style="display:none; align-items:center; gap:8px; background:rgba(255,183,0,0.12); border:1px solid #ffb700; color:#ffb700; padding:4px 12px; border-radius:999px; font-family:var(--font-mono); font-size:0.75rem; font-weight:700;">
+        <span>⏸️ SNOOZED: <span id="snooze-timer">00:00</span></span>
+        <button class="cyber-btn" onclick="setSnooze(0)" style="padding:2px 8px; font-size:0.7rem; background:#ffb700; color:#000; font-weight:800; border:none; border-radius:4px; cursor:pointer;">▶️ Resume</button>
+      </div>
+
+      <!-- Snooze Dropdown Menu -->
+      <div style="position:relative; display:inline-block;">
+        <button class="cyber-btn" onclick="toggleSnoozeMenu()" id="btn-snooze-toggle" style="font-size:0.76rem; padding:6px 12px; border-color:#222; background:#000;">
+          <span>⏸️ Snooze Shield</span> <span style="font-size:0.65rem;">▼</span>
+        </button>
+        <div id="snooze-dropdown" style="display:none; position:absolute; right:0; top:110%; background:#000; border:1px solid #222; border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,0.9); z-index:1000; min-width:140px; overflow:hidden;">
+          <button class="cyber-btn" onclick="setSnooze(30); toggleSnoozeMenu();" style="width:100%; border:none; border-bottom:1px solid #141414; border-radius:0; justify-content:flex-start; background:#000;">30 Seconds</button>
+          <button class="cyber-btn" onclick="setSnooze(60); toggleSnoozeMenu();" style="width:100%; border:none; border-bottom:1px solid #141414; border-radius:0; justify-content:flex-start; background:#000;">1 Minute</button>
+          <button class="cyber-btn" onclick="setSnooze(300); toggleSnoozeMenu();" style="width:100%; border:none; border-bottom:1px solid #141414; border-radius:0; justify-content:flex-start; background:#000;">5 Minutes</button>
+          <button class="cyber-btn" onclick="setSnooze(600); toggleSnoozeMenu();" style="width:100%; border:none; border-bottom:1px solid #141414; border-radius:0; justify-content:flex-start; background:#000;">10 Minutes</button>
+          <button class="cyber-btn" onclick="setSnooze(1800); toggleSnoozeMenu();" style="width:100%; border:none; border-radius:0; justify-content:flex-start; background:#000;">30 Minutes</button>
+        </div>
+      </div>
+
+      <!-- Quick Flush Cache -->
+      <button class="cyber-btn" onclick="flushCache()" title="Purge RAM DNS Cache" style="font-size:0.76rem; padding:6px 10px; border-color:#222; background:#000;">
+        <span>🧹 Flush Cache</span>
+      </button>
+
+      <!-- System Reboot -->
+      <button class="cyber-btn" onclick="rebootSystem()" title="Restart ESP32 Hardware Core" style="font-size:0.76rem; padding:6px 10px; border-color:#222; color:var(--text-muted); background:#000;">
+        <span>🔄 Reboot</span>
+      </button>
     </div>
 
     <!-- LIVE WAN/LAN SPEED METER -->
@@ -1006,7 +1039,67 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
               </div>
             </div>
 
-                        <!-- QUICK PRESET BUTTONS -->
+                        <!-- MULTI-DNS SPEED BENCHMARK LEADERBOARD -->
+            <div class="panel" style="margin-bottom:20px; background:#000; border:1px solid #181818;">
+              <div class="panel-head" style="background:#050505; border-bottom:1px solid #141414; display:flex; justify-content:space-between; align-items:center;">
+                <div class="panel-title">⚡ Multi-DNS Latency Benchmark & Global Speed Leaderboard</div>
+                <button class="cyber-btn active" onclick="runAllBenchmarks()" id="btn-bench-all" style="font-size:0.75rem;">⚡ Benchmark 5 Providers</button>
+              </div>
+              <div class="panel-body">
+                <div id="benchmark-results" style="overflow-x:auto;">
+                  <table style="width:100%; font-size:0.82rem;">
+                    <thead>
+                      <tr>
+                        <th style="padding:8px 12px;">DNS Provider</th>
+                        <th style="padding:8px 12px;">Primary IP</th>
+                        <th style="padding:8px 12px;">Latency</th>
+                        <th style="padding:8px 12px;">Security & Ad Filtering</th>
+                        <th style="padding:8px 12px; text-align:right;">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="benchmark-tbody">
+                      <tr>
+                        <td style="font-weight:700; color:var(--text);"><span style="color:var(--accent-green);">🛡️ AdGuard DNS</span></td>
+                        <td><code>94.140.14.14</code></td>
+                        <td><span id="lat-adg" style="font-weight:700; color:var(--accent-green);">-- ms</span></td>
+                        <td style="color:var(--text-dim);">High (Full Ad & Tracking Block)</td>
+                        <td style="text-align:right;"><button class="cyber-btn" onclick="setDnsPreset('94.140.14.14', '94.140.15.15')" style="padding:2px 8px; font-size:0.7rem;">Apply</button></td>
+                      </tr>
+                      <tr>
+                        <td style="font-weight:700; color:var(--text);"><span style="color:var(--accent-cyan);">⚡ Cloudflare</span></td>
+                        <td><code>1.1.1.1</code></td>
+                        <td><span id="lat-cf" style="font-weight:700; color:var(--accent-cyan);">-- ms</span></td>
+                        <td style="color:var(--text-dim);">Ultra-Fast Anycast Resolver</td>
+                        <td style="text-align:right;"><button class="cyber-btn" onclick="setDnsPreset('1.1.1.1', '1.0.0.1')" style="padding:2px 8px; font-size:0.7rem;">Apply</button></td>
+                      </tr>
+                      <tr>
+                        <td style="font-weight:700; color:var(--text);"><span style="color:var(--accent-yellow);">🔍 Google Public DNS</span></td>
+                        <td><code>8.8.8.8</code></td>
+                        <td><span id="lat-gg" style="font-weight:700; color:var(--accent-yellow);">-- ms</span></td>
+                        <td style="color:var(--text-dim);">Global Anycast Backbone</td>
+                        <td style="text-align:right;"><button class="cyber-btn" onclick="setDnsPreset('8.8.8.8', '8.8.4.4')" style="padding:2px 8px; font-size:0.7rem;">Apply</button></td>
+                      </tr>
+                      <tr>
+                        <td style="font-weight:700; color:var(--text);"><span style="color:var(--accent-purple);">🔒 Quad9</span></td>
+                        <td><code>9.9.9.9</code></td>
+                        <td><span id="lat-q9" style="font-weight:700; color:var(--accent-purple);">-- ms</span></td>
+                        <td style="color:var(--text-dim);">High Privacy + Malware Block</td>
+                        <td style="text-align:right;"><button class="cyber-btn" onclick="setDnsPreset('9.9.9.9', '149.112.112.112')" style="padding:2px 8px; font-size:0.7rem;">Apply</button></td>
+                      </tr>
+                      <tr>
+                        <td style="font-weight:700; color:var(--text);">🌐 OpenDNS</td>
+                        <td><code>208.67.222.222</code></td>
+                        <td><span id="lat-opn" style="font-weight:700;">-- ms</span></td>
+                        <td style="color:var(--text-dim);">Cisco Umbrella Backbone</td>
+                        <td style="text-align:right;"><button class="cyber-btn" onclick="setDnsPreset('208.67.222.222', '208.67.220.220')" style="padding:2px 8px; font-size:0.7rem;">Apply</button></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- QUICK PRESET BUTTONS -->
             <div style="margin-bottom:18px;">
               <span style="font-size:0.8rem; color:var(--text-muted); font-weight:700; display:block; margin-bottom:8px;">RECOMMENDED UPSTREAM DNS PRESETS:</span>
               <div style="display:flex; flex-wrap:wrap; gap:8px;">
@@ -1044,7 +1137,11 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
                 <span>🛡️ DNS Sinkhole Engine & Rule Controller</span>
                 <span id="master-status-badge" class="tag tag-allowed">ENABLED (ACTIVE)</span>
               </div>
-              <div style="font-size:0.8rem; color:var(--text-muted); font-family:var(--font-mono); margin-top:4px;">
+              <div style="display:flex; gap:8px; margin-top:8px;">
+              <button class="cyber-btn" onclick="exportRules('black')" style="font-size:0.72rem; padding:4px 10px;">📥 Export Blacklist (.txt)</button>
+              <button class="cyber-btn" onclick="exportRules('white')" style="font-size:0.72rem; padding:4px 10px;">📥 Export Whitelist (.txt)</button>
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-muted); font-family:var(--font-mono); margin-top:4px;">
                 Active Shield: <strong id="rules-active-count" style="color:var(--accent-green);">413 Built-in Rules</strong> &bull; 
                 Custom Blacklist: <strong id="rules-custom-count" style="color:var(--accent-red);">0</strong> &bull; 
                 Whitelisted Bypasses: <strong id="rules-white-count" style="color:var(--accent-cyan);">0</strong>
@@ -1452,9 +1549,17 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         return;
       }
 
-      tbody.innerHTML = list.map(c => `
+      tbody.innerHTML = list.map(c => {
+        const alias = getDeviceAlias(c.ip, c.mac);
+        return `
         <tr style="${state.filterIp === c.ip ? 'background:rgba(0,229,255,0.06);' : ''}">
-          <td><span class="ip-link" onclick="inspectIp('${c.ip}')">${c.ip}</span></td>
+          <td>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="ip-link" onclick="inspectIp('${c.ip}')">${c.ip}</span>
+              ${alias ? `<span style="font-size:0.75rem; color:var(--accent-cyan); font-weight:700;">(${alias})</span>` : ''}
+              <span onclick="promptDeviceAlias('${c.ip}')" style="cursor:pointer; opacity:0.6; font-size:0.75rem;" title="Rename Device">✏️</span>
+            </div>
+          </td>
           <td><span class="mac-text">${c.mac || '--'}</span></td>
           <td style="font-family:var(--font-mono); font-weight:700; color:var(--accent-green);">${formatBytes(c.bytes)}</td>
           <td style="font-family:var(--font-mono);">${c.total}</td>
@@ -1468,7 +1573,8 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <button class="cyber-btn" onclick="inspectIp('${c.ip}')" style="padding:4px 8px; font-size:0.72rem;">Inspect &rarr;</button>
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
     }
 
     // Terminal Mode Render
@@ -1572,14 +1678,22 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         return `
           <tr style="${state.filterIp === l.ip ? 'background:rgba(0,229,255,0.06);' : ''}">
             <td style="color:var(--text-muted); font-size:0.75rem;">${timeAgo(l.ago)}</td>
-            <td><span class="ip-link" onclick="inspectIp('${l.ip}')">${l.ip}</span></td>
+            <td>
+              <span class="ip-link" onclick="inspectIp('${l.ip}')" title="${l.ip}">
+                ${getDeviceAlias(l.ip, l.mac) ? (getDeviceAlias(l.ip, l.mac).slice(0, 14) + '...') : l.ip}
+              </span>
+            </td>
             <td><span class="mac-text">${l.mac || '--'}</span></td>
-            <td style="font-family:var(--font-mono); font-weight:600; color:#fff;">${l.domain}</td>
+            <td style="font-family:var(--font-mono); font-weight:600; color:#fff; word-break:break-all;">${l.domain}</td>
             <td style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-muted);">${l.type === 28 ? 'AAAA' : 'A'}</td>
             <td>${tag}</td>
             <td style="font-family:var(--font-mono); font-size:0.75rem;">${l.ms}ms</td>
             <td>
-              <button class="cyber-btn" onclick="inspectIp('${l.ip}')" style="padding:3px 7px; font-size:0.7rem;">Filter</button>
+              <div style="display:flex; gap:4px;">
+                <button class="cyber-btn" onclick="quickBlock('${l.domain}')" title="Block this domain" style="padding:2px 6px; font-size:0.7rem; color:var(--accent-red); border-color:rgba(255,0,85,0.3); background:#000;">🚫</button>
+                <button class="cyber-btn" onclick="quickWhitelist('${l.domain}')" title="Whitelist this domain" style="padding:2px 6px; font-size:0.7rem; color:var(--accent-green); border-color:rgba(0,255,157,0.3); background:#000;">✅</button>
+                <button class="cyber-btn" onclick="inspectIp('${l.ip}')" style="padding:2px 6px; font-size:0.7rem; background:#000;">🔍</button>
+              </div>
             </td>
           </tr>
         `;
@@ -1800,6 +1914,11 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         if (statsRes.blocking !== undefined) {
           isBlockingEnabled = statsRes.blocking;
           updateEngineUI();
+        }
+        if (statsRes.isSnoozed && statsRes.snoozeRemaining > 0) {
+          startSnoozeCountdown(statsRes.snoozeRemaining);
+        } else if (!statsRes.isSnoozed && localSnoozeRemaining > 0) {
+          stopSnoozeCountdown();
         }
         state.logs = tData.logs;
         state.clients = tData.clients;
@@ -2378,6 +2497,198 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     let customWhitelist = [];
     let customBlacklist = [];
     let isBlockingEnabled = true;
+
+    // --- Device Aliases & Nicknames ---
+    let deviceAliases = {};
+    try { deviceAliases = JSON.parse(localStorage.getItem('device_aliases') || '{}'); } catch(e){ deviceAliases = {}; }
+
+    function getDeviceAlias(ip, mac) {
+      if (deviceAliases[ip]) return deviceAliases[ip];
+      if (mac && deviceAliases[mac]) return deviceAliases[mac];
+      return '';
+    }
+
+    function promptDeviceAlias(ip) {
+      const cur = deviceAliases[ip] || '';
+      const name = prompt(`Set friendly nickname for ${ip}:`, cur);
+      if (name !== null) {
+        if (name.trim()) deviceAliases[ip] = name.trim();
+        else delete deviceAliases[ip];
+        try { localStorage.setItem('device_aliases', JSON.stringify(deviceAliases)); } catch(e){}
+        renderDevicesTable();
+        renderQueriesTable();
+        showToast(`Device ${ip} renamed to "${name.trim() || ip}"`, 'cyan');
+      }
+    }
+
+    // --- Cyber Floating Toast Notification ---
+    function showToast(msg, color='green') {
+      let t = document.getElementById('cyber-toast');
+      if (!t) {
+        t = document.createElement('div');
+        t.id = 'cyber-toast';
+        t.style.cssText = 'position:fixed; bottom:24px; right:24px; z-index:99999; padding:12px 20px; border-radius:8px; font-weight:700; font-size:0.85rem; font-family:var(--font-mono); box-shadow:0 0 25px rgba(0,0,0,0.95); transition:all 0.3s cubic-bezier(0.16, 1, 0.3, 1); opacity:0; pointer-events:none; background:#000; border:1px solid #333;';
+        document.body.appendChild(t);
+      }
+      const borderCol = (color === 'red') ? '#ff0055' : (color === 'cyan' ? '#00e5ff' : (color === 'yellow' ? '#ffb700' : '#00ff9d'));
+      t.style.borderColor = borderCol;
+      t.style.color = borderCol;
+      t.style.boxShadow = `0 0 20px ${borderCol}40`;
+      t.innerHTML = msg;
+      t.style.opacity = '1';
+      t.style.transform = 'translateY(0)';
+      clearTimeout(t._hideTimeout);
+      t._hideTimeout = setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.transform = 'translateY(12px)';
+      }, 3200);
+    }
+
+    // --- Snooze / Timed Pause Functions ---
+    let snoozeTimerInterval = null;
+    let localSnoozeRemaining = 0;
+
+    function toggleSnoozeMenu() {
+      const dd = document.getElementById('snooze-dropdown');
+      if (dd) dd.style.display = (dd.style.display === 'none' || !dd.style.display) ? 'block' : 'none';
+    }
+
+    document.addEventListener('click', (e) => {
+      const dd = document.getElementById('snooze-dropdown');
+      const btn = document.getElementById('btn-snooze-toggle');
+      if (dd && btn && !btn.contains(e.target) && !dd.contains(e.target)) {
+        dd.style.display = 'none';
+      }
+    });
+
+    async function setSnooze(seconds) {
+      try {
+        const body = new URLSearchParams();
+        body.append('duration', seconds);
+        const res = await fetch(API_BASE + '/api/snooze', { method: 'POST', body }).then(r => r.json());
+        if (seconds > 0) {
+          showToast(`⏸️ Ad Shield Snoozed for ${Math.round(seconds/60)} min`, 'yellow');
+          startSnoozeCountdown(seconds);
+        } else {
+          showToast('▶️ Ad Shield Resumed & Active!', 'green');
+          stopSnoozeCountdown();
+        }
+        fetchData();
+      } catch(e) {
+        showToast('Error setting snooze', 'red');
+      }
+    }
+
+    function startSnoozeCountdown(sec) {
+      localSnoozeRemaining = sec;
+      const badge = document.getElementById('snooze-badge');
+      const timer = document.getElementById('snooze-timer');
+      if (badge) badge.style.display = 'inline-flex';
+
+      clearInterval(snoozeTimerInterval);
+      snoozeTimerInterval = setInterval(() => {
+        localSnoozeRemaining--;
+        if (localSnoozeRemaining <= 0) {
+          stopSnoozeCountdown();
+          showToast('⏰ Snooze expired. Ad Shield resumed!', 'green');
+          fetchData();
+          return;
+        }
+        const m = Math.floor(localSnoozeRemaining / 60);
+        const s = localSnoozeRemaining % 60;
+        if (timer) timer.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+      }, 1000);
+    }
+
+    function stopSnoozeCountdown() {
+      clearInterval(snoozeTimerInterval);
+      const badge = document.getElementById('snooze-badge');
+      if (badge) badge.style.display = 'none';
+    }
+
+    // --- Cache Flush & System Reboot ---
+    async function flushCache() {
+      try {
+        await fetch(API_BASE + '/api/flush_cache', { method: 'POST' });
+        showToast('🧹 DNS RAM Cache Purged Successfully!', 'cyan');
+        fetchData();
+      } catch(e) {
+        showToast('Failed to flush cache', 'red');
+      }
+    }
+
+    async function rebootSystem() {
+      if (!confirm('Reboot WT32-ETH01 hardware core now?')) return;
+      try {
+        await fetch(API_BASE + '/api/reboot', { method: 'POST' });
+      } catch(e) {}
+      showToast('🔄 Rebooting hardware... Reconnecting in 6s', 'yellow');
+      setTimeout(() => { window.location.reload(); }, 6000);
+    }
+
+    // --- Export Rules to .txt File ---
+    function exportRules(type) {
+      const list = (type === 'white') ? customWhitelist : customBlacklist;
+      if (!list || list.length === 0) {
+        showToast(`No custom ${type}list rules to export.`, 'yellow');
+        return;
+      }
+      const text = list.join('\n');
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `wt32_eth01_${type}list_${new Date().toISOString().slice(0,10)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`📥 Exported ${list.length} ${type}list rules!`, 'cyan');
+    }
+
+    // --- Quick Block & Whitelist Actions ---
+    async function quickBlock(domain) {
+      try {
+        const body = new URLSearchParams();
+        body.append('domain', domain);
+        await fetch(API_BASE + '/api/add_block', { method: 'POST', body });
+        showToast(`🚫 Blocked: ${domain}`, 'red');
+        await fetchRules();
+      } catch(e) {
+        showToast(`Error blocking ${domain}`, 'red');
+      }
+    }
+
+    async function quickWhitelist(domain) {
+      try {
+        const body = new URLSearchParams();
+        body.append('domain', domain);
+        await fetch(API_BASE + '/api/add_white', { method: 'POST', body });
+        showToast(`✅ Whitelisted: ${domain}`, 'green');
+        await fetchRules();
+      } catch(e) {
+        showToast(`Error whitelisting ${domain}`, 'red');
+      }
+    }
+
+    // --- Multi-DNS Benchmark All ---
+    async function runAllBenchmarks() {
+      const btn = document.getElementById('btn-bench-all');
+      if (btn) btn.innerText = '⚡ Testing...';
+      showToast('⚡ Benchmarking 5 global DNS providers...', 'cyan');
+      try {
+        const res = await fetch(API_BASE + '/api/benchmark_all').then(r => r.json());
+        if (res.adguard !== undefined) document.getElementById('lat-adg').innerText = res.adguard + ' ms';
+        if (res.cloudflare !== undefined) document.getElementById('lat-cf').innerText = res.cloudflare + ' ms';
+        if (res.google !== undefined) document.getElementById('lat-gg').innerText = res.google + ' ms';
+        if (res.quad9 !== undefined) document.getElementById('lat-q9').innerText = res.quad9 + ' ms';
+        if (res.opendns !== undefined) document.getElementById('lat-opn').innerText = res.opendns + ' ms';
+        showToast('Benchmark complete!', 'green');
+      } catch(e) {
+        showToast('Benchmark completed with local ping', 'cyan');
+        runBenchmark();
+      }
+      if (btn) btn.innerText = '⚡ Benchmark 5 Providers';
+    }
+
 
     function filterRuleCategory(cat) {
       selectedCategory = cat;

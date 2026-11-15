@@ -121,6 +121,9 @@ private:
     uint32_t lastArpScan = 0;
     uint8_t nextScanHost = 70;
 
+    // Timed Snooze Blocking
+    uint32_t snoozeUntilMillis = 0;
+
     bool parseDnsQuestion(const uint8_t* buf, size_t len, size_t& offset, String& outDomain, uint16_t& outQtype);
     void sendSinkholeResponse(const uint8_t* queryBuf, size_t queryLen, size_t questionEnd, const IPAddress& clientIp, uint16_t clientPort, uint16_t id, uint16_t qtype);
     void logQuery(const IPAddress& clientIp, const String& clientMac, const String& domain, uint16_t qtype, QueryVerdict verdict, uint16_t durationMs);
@@ -155,6 +158,24 @@ public:
     
     // Upstream benchmark
     uint32_t benchmarkDns(const String& serverIp);
+
+    // Timed Snooze Control
+    bool isSnoozed() const {
+        return (snoozeUntilMillis > 0 && millis() < snoozeUntilMillis);
+    }
+    uint32_t getSnoozeRemainingSec() const {
+        if (snoozeUntilMillis > 0 && millis() < snoozeUntilMillis) {
+            return (snoozeUntilMillis - millis()) / 1000;
+        }
+        return 0;
+    }
+    void setSnooze(uint32_t seconds) {
+        if (seconds == 0) {
+            snoozeUntilMillis = 0;
+        } else {
+            snoozeUntilMillis = millis() + (seconds * 1000);
+        }
+    }
 };
 
 extern DnsEngine dnsEngine;

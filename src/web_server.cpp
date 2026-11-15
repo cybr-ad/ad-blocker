@@ -75,6 +75,35 @@ void WebServerManager::begin() {
         server.send(200, "application/json", json);
     });
 
+    // API: Comprehensive Multi-DNS Benchmark Leaderboard
+    server.on("/api/benchmark_all", HTTP_GET, [this]() {
+        uint32_t adg = dnsEngine.benchmarkDns("94.140.14.14");
+        uint32_t cf  = dnsEngine.benchmarkDns("1.1.1.1");
+        uint32_t gg  = dnsEngine.benchmarkDns("8.8.8.8");
+        uint32_t q9  = dnsEngine.benchmarkDns("9.9.9.9");
+        uint32_t opn = dnsEngine.benchmarkDns("208.67.222.222");
+
+        String json = "{";
+        json += "\"adguard\":" + String(adg) + ",";
+        json += "\"cloudflare\":" + String(cf) + ",";
+        json += "\"google\":" + String(gg) + ",";
+        json += "\"quad9\":" + String(q9) + ",";
+        json += "\"opendns\":" + String(opn);
+        json += "}";
+        server.send(200, "application/json", json);
+    });
+
+    // API: Snooze / Timed Pause
+    server.on("/api/snooze", HTTP_POST, [this]() {
+        if (server.hasArg("duration")) {
+            uint32_t dur = server.arg("duration").toInt();
+            dnsEngine.setSnooze(dur);
+            server.send(200, "application/json", "{\"status\":\"ok\",\"snoozeRemaining\":" + String(dnsEngine.getSnoozeRemainingSec()) + "}");
+        } else {
+            server.send(400, "application/json", "{\"status\":\"missing duration\"}");
+        }
+    });
+
     // API: Lists
     server.on("/api/lists", HTTP_GET, [this]() {
         const auto& wl = configMgr.getWhitelist();

@@ -374,7 +374,7 @@ void DnsEngine::handle() {
                     bool blocked = false;
                     AppConfig& cfg = configMgr.getConfig();
 
-                    if (cfg.blockingEnabled) {
+                    if (cfg.blockingEnabled && !isSnoozed()) {
                         if (configMgr.isCustomWhitelisted(domain)) {
                             blocked = false;
                         } else if (configMgr.isCustomBlacklisted(domain)) {
@@ -575,7 +575,9 @@ void DnsEngine::getStatsJson(String& outJson) const {
     outJson += "\"sketchSize\":" + String(sketchSize) + ",";
     outJson += "\"freeSketch\":" + String(freeSketch) + ",";
     outJson += "\"tempC\":" + String(chipTemp, 1) + ",";
-    outJson += "\"blocking\":" + String(configMgr.getConfig().blockingEnabled ? "true" : "false") + ",";
+    outJson += "\"blocking\":" + String((configMgr.getConfig().blockingEnabled && !isSnoozed()) ? "true" : "false") + ",";
+    outJson += "\"isSnoozed\":" + String(isSnoozed() ? "true" : "false") + ",";
+    outJson += "\"snoozeRemaining\":" + String(getSnoozeRemainingSec()) + ",";
     outJson += "\"builtinCount\":" + String(BUILTIN_BLOCKLIST_COUNT) + ",";
     outJson += "\"whitelistCount\":" + String(configMgr.getWhitelist().size()) + ",";
     outJson += "\"blacklistCount\":" + String(configMgr.getBlacklist().size()) + ",";
