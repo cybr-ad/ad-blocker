@@ -239,21 +239,40 @@ bool DnsEngine::parseDnsQuestion(const uint8_t* buf, size_t len, size_t& offset,
     return true;
 }
 
-void DnsEngine::sendSinkholeResponse(const uint8_t* queryBuf, size_t queryLen, size_t questionEnd, const IPAddress& clientIp, uint16_t clientPort, uint16_t id, uint16_t qtype) {
+void DnsEngine::sendSinkholeResponse(const uint8_t* queryBuf, size_t queryLen, size_t questionEnd, const IPAddress& clientIp, uint16_t clientPort, uint16_t id, uint16_t qtype, bool nxdomain) {
     uint8_t resp[512];
     if (questionEnd > 400) return;
 
     memcpy(resp, queryBuf, questionEnd);
     resp[0] = (uint8_t)(id >> 8);
     resp[1] = (uint8_t)(id & 0xFF);
-    resp[2] = 0x81;
-    resp[3] = 0x80;
+    resp[2] = 0x81; // Standard query response, recursion desired
+
+    if (nxdomain) {
+        resp[3] = 0x83; // RA=1, RCODE=3 (NXDOMAIN) - official standard for Firefox canary domain
+        resp[4] = 0x00; resp[5] = 0x01; // QDCOUNT = 1
+        resp[6] = 0x00; resp[7] = 0x00; // ANCOUNT = 0
+        resp[8] = 0x00; resp[9] = 0x00;
+        resp[10] = 0x00; resp[11] = 0x00;
+
+        clientUdp.beginPacket(clientIp, clientPort);
+        clientUdp.write(resp, questionEnd);
+        clientUdp.endPacket();
+
+        stats.totalBytesTx += questionEnd;
+        stats.totalPacketsTx++;
+        windowBytesTx += questionEnd;
+        windowPackets++;
+        return;
+    }
+
+    resp[3] = 0x80; // RA=1, RCODE=0 (NOERROR)
     resp[4] = 0x00;
     resp[5] = 0x01;
 
     size_t respLen = questionEnd;
 
-    if (qtype == 1) { // Type A (IPv4)
+    if (qtype == 1) { // Type A (IPv4) -> 0.0.0.0
         resp[6] = 0x00; resp[7] = 0x01; // 1 Answer
         resp[8] = 0x00; resp[9] = 0x00;
         resp[10] = 0x00; resp[11] = 0x00;
@@ -264,8 +283,21 @@ void DnsEngine::sendSinkholeResponse(const uint8_t* queryBuf, size_t queryLen, s
         resp[respLen++] = 0x00; resp[respLen++] = 0x00; resp[respLen++] = 0x01; resp[respLen++] = 0x2C; // TTL 300s
         resp[respLen++] = 0x00; resp[respLen++] = 0x04; // RDLENGTH 4
         resp[respLen++] = 0x00; resp[respLen++] = 0x00; resp[respLen++] = 0x00; resp[respLen++] = 0x00; // 0.0.0.0
-    } else {
-        resp[6] = 0x00; resp[7] = 0x00; // NODATA
+    } else if (qtype == 28) { // Type AAAA (IPv6) -> :: (Blackhole IPv6)
+        resp[6] = 0x00; resp[7] = 0x01; // 1 Answer
+        resp[8] = 0x00; resp[9] = 0x00;
+        resp[10] = 0x00; resp[11] = 0x00;
+
+        resp[respLen++] = 0xC0; resp[respLen++] = 0x0C; // Pointer to QNAME
+        resp[respLen++] = 0x00; resp[respLen++] = 0x1C; // TYPE AAAA (28)
+        resp[respLen++] = 0x00; resp[respLen++] = 0x01; // CLASS IN
+        resp[respLen++] = 0x00; resp[respLen++] = 0x00; resp[respLen++] = 0x01; resp[respLen++] = 0x2C; // TTL 300s
+        resp[respLen++] = 0x00; resp[respLen++] = 0x10; // RDLENGTH 16
+        for (int i = 0; i < 16; i++) {
+            resp[respLen++] = 0x00; // ::
+        }
+    } else { // Type 65 (HTTPS) or other query types -> NODATA (0 answers)
+        resp[6] = 0x00; resp[7] = 0x00;
         resp[8] = 0x00; resp[9] = 0x00;
         resp[10] = 0x00; resp[11] = 0x00;
     }
@@ -315,6 +347,19 @@ void DnsEngine::addCache(const String& domain, uint16_t qtype, uint32_t ttlSec, 
     cache[idx].expireAt = millis() + (ttlSec * 1000);
     cache[idx].dataLen = respLen;
     memcpy(cache[idx].data, respBuf, respLen);
+}
+
+static bool isDohBootstrapDomain(const String& d) {
+    if (d == "dns.google" || d.endsWith(".dns.google")) return true;
+    if (d == "cloudflare-dns.com" || d.endsWith(".cloudflare-dns.com")) return true;
+    if (d == "one.one.one.one" || d == "1dot1dot1dot1.cloudflare-dns.com") return true;
+    if (d == "dns.quad9.net" || d == "dns9.quad9.net") return true;
+    if (d == "dns.adguard.com" || d == "dns.adguard-dns.com") return true;
+    if (d == "dns.nextdns.io" || d.endsWith(".dns.nextdns.io")) return true;
+    if (d == "doh.cleanbrowsing.org" || d == "doh.opendns.com") return true;
+    if (d == "dns.controld.com" || d == "doh.mullvad.net") return true;
+    if (d == "doh.pub" || d == "dns.alidns.com") return true;
+    return false;
 }
 
 void DnsEngine::handle() {
@@ -372,9 +417,16 @@ void DnsEngine::handle() {
 
                 if (parseDnsQuestion(buf, bytesRead, questionEnd, domain, qtype)) {
                     bool blocked = false;
+                    bool isCanary = (domain == "use-application-dns.net");
                     AppConfig& cfg = configMgr.getConfig();
 
-                    if (cfg.blockingEnabled && !isSnoozed()) {
+                    if (isCanary) {
+                        // Mozilla Firefox DoH Canary Domain: returns NXDOMAIN to force Firefox to disable DoH
+                        blocked = true;
+                    } else if (isDohBootstrapDomain(domain)) {
+                        // Block DoH bootstrap servers so Chromium/Brave/Edge immediately fail over to system DNS
+                        blocked = true;
+                    } else if (cfg.blockingEnabled && !isSnoozed()) {
                         if (configMgr.isCustomWhitelisted(domain)) {
                             blocked = false;
                         } else if (configMgr.isCustomBlacklisted(domain)) {
@@ -389,7 +441,7 @@ void DnsEngine::handle() {
 
                     if (blocked) {
                         stats.blockedQueries++;
-                        sendSinkholeResponse(buf, bytesRead, questionEnd, clientIp, clientPort, id, qtype);
+                        sendSinkholeResponse(buf, bytesRead, questionEnd, clientIp, clientPort, id, qtype, isCanary);
                         logQuery(clientIp, clientMac, domain, qtype, VERDICT_BLOCKED, 0);
                     } else {
                         // Check local cache
@@ -432,9 +484,12 @@ void DnsEngine::handle() {
                             buf[0] = (uint8_t)(upId >> 8);
                             buf[1] = (uint8_t)(upId & 0xFF);
 
+                            pendingQueries[slot].packetLen = (bytesRead <= (int)sizeof(pendingQueries[slot].packet)) ? bytesRead : sizeof(pendingQueries[slot].packet);
+                            memcpy(pendingQueries[slot].packet, buf, pendingQueries[slot].packetLen);
+
                             IPAddress upstreamIp;
                             if (!upstreamIp.fromString(cfg.upstreamDns1)) {
-                                upstreamIp = IPAddress(94, 140, 14, 14); // Default to AdGuard DNS
+                                upstreamIp = IPAddress(1, 1, 1, 1);
                             }
 
                             upstreamUdp.beginPacket(upstreamIp, 53);
@@ -496,15 +551,18 @@ void DnsEngine::handle() {
         }
     }
 
-    // 5. Secondary DNS Failover check: retry if pending > 700ms
+    // 5. Secondary DNS Failover check: retry if pending > 650ms
     for (size_t i = 0; i < MAX_PENDING; i++) {
         if (pendingQueries[i].active) {
             uint32_t age = now - pendingQueries[i].sendTime;
             AppConfig& cfg = configMgr.getConfig();
 
-            if (!pendingQueries[i].retriedSecondary && age > 700 && cfg.upstreamDns2.length() > 0) {
+            if (!pendingQueries[i].retriedSecondary && age > 650 && cfg.upstreamDns2.length() > 0) {
                 IPAddress secIp;
-                if (secIp.fromString(cfg.upstreamDns2)) {
+                if (secIp.fromString(cfg.upstreamDns2) && pendingQueries[i].packetLen > 0) {
+                    upstreamUdp.beginPacket(secIp, 53);
+                    upstreamUdp.write(pendingQueries[i].packet, pendingQueries[i].packetLen);
+                    upstreamUdp.endPacket();
                     pendingQueries[i].retriedSecondary = true;
                 }
             } else if (age > 4000) {

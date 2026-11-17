@@ -12,8 +12,8 @@ struct AppConfig {
     
     // IP mode: true = Static (192.168.1.95), false = DHCP
     bool useStaticIp = true;
-    String staticIp = "192.168.1.95";
-    String staticGateway = "192.168.1.1";
+    String staticIp = "107.7.97.95";
+    String staticGateway = "107.7.97.77";
     String staticSubnet = "255.255.255.0";
     String staticDns = "1.1.1.1";
 };
@@ -55,68 +55,130 @@ public:
         prefs.putString("sdns", config.staticDns);
     }
 
+    void parseCommaSeparated(const String& str, std::vector<String>& list) {
+        if (str.length() == 0) return;
+        int start = 0;
+        int idx = str.indexOf(',');
+        while (idx != -1) {
+            String d = cleanDomain(str.substring(start, idx));
+            if (d.length() > 0) {
+                bool exists = false;
+                for (const auto& item : list) {
+                    if (item == d) { exists = true; break; }
+                }
+                if (!exists) list.push_back(d);
+            }
+            start = idx + 1;
+            idx = str.indexOf(',', start);
+        }
+        String last = cleanDomain(str.substring(start));
+        if (last.length() > 0) {
+            bool exists = false;
+            for (const auto& item : list) {
+                if (item == last) { exists = true; break; }
+            }
+            if (!exists) list.push_back(last);
+        }
+    }
+
     void loadLists() {
         customWhitelist.clear();
         customBlacklist.clear();
         
-        String wlStr = prefs.getString("wl", "");
-        if (wlStr.length() > 0) {
-            int start = 0;
-            int idx = wlStr.indexOf(',');
-            while (idx != -1) {
-                String d = wlStr.substring(start, idx);
-                d.trim();
-                d.toLowerCase();
-                if (d.length() > 0) customWhitelist.push_back(d);
-                start = idx + 1;
-                idx = wlStr.indexOf(',', start);
+        // 1. Whitelist: Check chunked keys first
+        int wlChunks = prefs.getInt("wl_c", -1);
+        if (wlChunks > 0) {
+            for (int c = 0; c < wlChunks; c++) {
+                parseCommaSeparated(prefs.getString(("w_" + String(c)).c_str(), ""), customWhitelist);
             }
-            String last = wlStr.substring(start);
-            last.trim();
-            last.toLowerCase();
-            if (last.length() > 0) customWhitelist.push_back(last);
+        } else {
+            // Legacy single "wl" key fallback
+            parseCommaSeparated(prefs.getString("wl", ""), customWhitelist);
         }
 
-        String blStr = prefs.getString("bl", "");
-        if (blStr.length() > 0) {
-            int start = 0;
-            int idx = blStr.indexOf(',');
-            while (idx != -1) {
-                String d = blStr.substring(start, idx);
-                d.trim();
-                d.toLowerCase();
-                if (d.length() > 0) customBlacklist.push_back(d);
-                start = idx + 1;
-                idx = blStr.indexOf(',', start);
+        // 2. Blacklist: Check chunked keys first
+        int blChunks = prefs.getInt("bl_c", -1);
+        if (blChunks > 0) {
+            for (int c = 0; c < blChunks; c++) {
+                parseCommaSeparated(prefs.getString(("b_" + String(c)).c_str(), ""), customBlacklist);
             }
-            String last = blStr.substring(start);
-            last.trim();
-            last.toLowerCase();
-            if (last.length() > 0) customBlacklist.push_back(last);
+        } else {
+            // Legacy single "bl" key fallback
+            parseCommaSeparated(prefs.getString("bl", ""), customBlacklist);
         }
     }
 
     void saveLists() {
-        String wlStr = "";
-        for (size_t i = 0; i < customWhitelist.size(); i++) {
-            if (i > 0) wlStr += ",";
-            wlStr += customWhitelist[i];
-        }
-        prefs.putString("wl", wlStr);
+        const size_t CHUNK_SIZE = 30; // 30 domains per chunk (~500 bytes, safely below 1984/4000 byte NVS limits)
 
-        String blStr = "";
-        for (size_t i = 0; i < customBlacklist.size(); i++) {
-            if (i > 0) blStr += ",";
-            blStr += customBlacklist[i];
+        // Save Whitelist
+        int oldWlChunks = prefs.getInt("wl_c", 0);
+        int wlChunks = 0;
+        if (!customWhitelist.empty()) {
+            wlChunks = (customWhitelist.size() + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            for (int c = 0; c < wlChunks; c++) {
+                String chunkStr = "";
+                size_t start = c * CHUNK_SIZE;
+                size_t end = std::min(customWhitelist.size(), start + CHUNK_SIZE);
+                for (size_t i = start; i < end; i++) {
+                    if (i > start) chunkStr += ",";
+                    chunkStr += customWhitelist[i];
+                }
+                prefs.putString(("w_" + String(c)).c_str(), chunkStr);
+            }
         }
-        prefs.putString("bl", blStr);
+        for (int c = wlChunks; c < oldWlChunks + 5; c++) {
+            prefs.remove(("w_" + String(c)).c_str());
+        }
+        prefs.putInt("wl_c", wlChunks);
+        prefs.remove("wl"); // Clear legacy key
+
+        // Save Blacklist
+        int oldBlChunks = prefs.getInt("bl_c", 0);
+        int blChunks = 0;
+        if (!customBlacklist.empty()) {
+            blChunks = (customBlacklist.size() + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            for (int c = 0; c < blChunks; c++) {
+                String chunkStr = "";
+                size_t start = c * CHUNK_SIZE;
+                size_t end = std::min(customBlacklist.size(), start + CHUNK_SIZE);
+                for (size_t i = start; i < end; i++) {
+                    if (i > start) chunkStr += ",";
+                    chunkStr += customBlacklist[i];
+                }
+                prefs.putString(("b_" + String(c)).c_str(), chunkStr);
+            }
+        }
+        for (int c = blChunks; c < oldBlChunks + 10; c++) {
+            prefs.remove(("b_" + String(c)).c_str());
+        }
+        prefs.putInt("bl_c", blChunks);
+        prefs.remove("bl"); // Clear legacy key
+    }
+
+    static String cleanDomain(const String& d) {
+        String s = d;
+        s.trim();
+        s.toLowerCase();
+        if (s.startsWith("http://")) s = s.substring(7);
+        if (s.startsWith("https://")) s = s.substring(8);
+        int slash = s.indexOf('/');
+        if (slash != -1) s = s.substring(0, slash);
+        int colon = s.indexOf(':');
+        if (colon != -1) s = s.substring(0, colon);
+        if (s.startsWith("www.")) s = s.substring(4);
+        return s;
     }
 
     bool isCustomWhitelisted(const String& domain) {
         String lower = domain;
         lower.toLowerCase();
+        String clean = cleanDomain(lower);
         for (const auto& item : customWhitelist) {
-            if (lower == item || lower.endsWith("." + item)) {
+            String itemClean = cleanDomain(item);
+            if (lower == item || lower.endsWith("." + item) ||
+                clean == itemClean || clean.endsWith("." + itemClean) ||
+                lower.endsWith("." + itemClean)) {
                 return true;
             }
         }
@@ -126,8 +188,12 @@ public:
     bool isCustomBlacklisted(const String& domain) {
         String lower = domain;
         lower.toLowerCase();
+        String clean = cleanDomain(lower);
         for (const auto& item : customBlacklist) {
-            if (lower == item || lower.endsWith("." + item)) {
+            String itemClean = cleanDomain(item);
+            if (lower == item || lower.endsWith("." + item) ||
+                clean == itemClean || clean.endsWith("." + itemClean) ||
+                lower.endsWith("." + itemClean)) {
                 return true;
             }
         }
@@ -135,12 +201,10 @@ public:
     }
 
     bool addWhitelist(const String& domain) {
-        String d = domain;
-        d.trim();
-        d.toLowerCase();
+        String d = cleanDomain(domain);
         if (d.length() == 0) return false;
         for (const auto& item : customWhitelist) {
-            if (item == d) return false;
+            if (cleanDomain(item) == d) return false;
         }
         customWhitelist.push_back(d);
         saveLists();
@@ -148,11 +212,9 @@ public:
     }
 
     bool removeWhitelist(const String& domain) {
-        String d = domain;
-        d.trim();
-        d.toLowerCase();
+        String d = cleanDomain(domain);
         for (auto it = customWhitelist.begin(); it != customWhitelist.end(); ++it) {
-            if (*it == d) {
+            if (cleanDomain(*it) == d) {
                 customWhitelist.erase(it);
                 saveLists();
                 return true;
@@ -162,12 +224,10 @@ public:
     }
 
     bool addBlacklist(const String& domain) {
-        String d = domain;
-        d.trim();
-        d.toLowerCase();
+        String d = cleanDomain(domain);
         if (d.length() == 0) return false;
         for (const auto& item : customBlacklist) {
-            if (item == d) return false;
+            if (cleanDomain(item) == d) return false;
         }
         customBlacklist.push_back(d);
         saveLists();
@@ -175,11 +235,9 @@ public:
     }
 
     bool removeBlacklist(const String& domain) {
-        String d = domain;
-        d.trim();
-        d.toLowerCase();
+        String d = cleanDomain(domain);
         for (auto it = customBlacklist.begin(); it != customBlacklist.end(); ++it) {
-            if (*it == d) {
+            if (cleanDomain(*it) == d) {
                 customBlacklist.erase(it);
                 saveLists();
                 return true;
@@ -192,15 +250,14 @@ public:
         size_t added = 0;
         auto& list = isWhitelist ? customWhitelist : customBlacklist;
         for (String d : domains) {
-            d.trim();
-            d.toLowerCase();
-            if (d.length() == 0) continue;
+            String clean = cleanDomain(d);
+            if (clean.length() == 0) continue;
             bool exists = false;
             for (const auto& item : list) {
-                if (item == d) { exists = true; break; }
+                if (cleanDomain(item) == clean) { exists = true; break; }
             }
             if (!exists) {
-                list.push_back(d);
+                list.push_back(clean);
                 added++;
             }
         }

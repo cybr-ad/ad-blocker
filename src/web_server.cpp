@@ -62,8 +62,14 @@ void WebServerManager::begin() {
         server.send(200, "application/json", "{\"status\":\"flushed\"}");
     });
 
-    // API: Benchmark Upstream DNS
+    // API: Benchmark Upstream DNS or Specific IP
     server.on("/api/benchmark", HTTP_GET, [this]() {
+        if (server.hasArg("ip")) {
+            String ip = server.arg("ip");
+            uint32_t lat = dnsEngine.benchmarkDns(ip);
+            server.send(200, "application/json", "{\"ip\":\"" + ip + "\",\"lat\":" + String(lat) + "}");
+            return;
+        }
         AppConfig& cfg = configMgr.getConfig();
         uint32_t lat1 = dnsEngine.benchmarkDns(cfg.upstreamDns1);
         uint32_t lat2 = dnsEngine.benchmarkDns(cfg.upstreamDns2);
@@ -75,20 +81,32 @@ void WebServerManager::begin() {
         server.send(200, "application/json", json);
     });
 
-    // API: Comprehensive Multi-DNS Benchmark Leaderboard
+    // API: Comprehensive Multi-DNS Benchmark Leaderboard (Top 10 Global Providers)
     server.on("/api/benchmark_all", HTTP_GET, [this]() {
-        uint32_t adg = dnsEngine.benchmarkDns("94.140.14.14");
-        uint32_t cf  = dnsEngine.benchmarkDns("1.1.1.1");
-        uint32_t gg  = dnsEngine.benchmarkDns("8.8.8.8");
-        uint32_t q9  = dnsEngine.benchmarkDns("9.9.9.9");
-        uint32_t opn = dnsEngine.benchmarkDns("208.67.222.222");
+        uint32_t adg  = dnsEngine.benchmarkDns("94.140.14.14");
+        uint32_t cf   = dnsEngine.benchmarkDns("1.1.1.1");
+        uint32_t gg   = dnsEngine.benchmarkDns("8.8.8.8");
+        uint32_t q9   = dnsEngine.benchmarkDns("9.9.9.9");
+        uint32_t opn  = dnsEngine.benchmarkDns("208.67.222.222");
+        uint32_t cfd  = dnsEngine.benchmarkDns("76.76.2.2");
+        uint32_t mlv  = dnsEngine.benchmarkDns("194.242.2.3");
+        uint32_t cff  = dnsEngine.benchmarkDns("1.1.1.3");
+        uint32_t agf  = dnsEngine.benchmarkDns("94.140.14.15");
+        uint32_t cfs  = dnsEngine.benchmarkDns("1.1.1.2");
+        uint32_t opnf = dnsEngine.benchmarkDns("208.67.222.123");
 
         String json = "{";
         json += "\"adguard\":" + String(adg) + ",";
         json += "\"cloudflare\":" + String(cf) + ",";
         json += "\"google\":" + String(gg) + ",";
         json += "\"quad9\":" + String(q9) + ",";
-        json += "\"opendns\":" + String(opn);
+        json += "\"opendns\":" + String(opn) + ",";
+        json += "\"controld\":" + String(cfd) + ",";
+        json += "\"mullvad\":" + String(mlv) + ",";
+        json += "\"cffamily\":" + String(cff) + ",";
+        json += "\"adgfamily\":" + String(agf) + ",";
+        json += "\"cfsec\":" + String(cfs) + ",";
+        json += "\"opnfamily\":" + String(opnf);
         json += "}";
         server.send(200, "application/json", json);
     });

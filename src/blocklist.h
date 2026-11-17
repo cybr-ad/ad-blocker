@@ -425,20 +425,24 @@ static const char* const BUILTIN_BLOCKLIST[] PROGMEM = {
     "zemanta.com"
 };
 
-// Binary Search lookup in Flash PROGMEM (O(log N) lookup in < 1 microsecond)
+// Fast Binary Search with subdomain/parent-label matching in Flash PROGMEM
 inline bool isDomainBlockedBuiltin(const char* domain) {
     if (!domain || domain[0] == '\0') return false;
     
-    int low = 0;
-    int high = (int)BUILTIN_BLOCKLIST_COUNT - 1;
-    
-    while (low <= high) {
-        int mid = low + (high - low) / 2;
-        const char* midDomain = (const char*)pgm_read_ptr(&(BUILTIN_BLOCKLIST[mid]));
-        int cmp = strcasecmp(domain, midDomain);
-        if (cmp == 0) return true;
-        if (cmp < 0) high = mid - 1;
-        else low = mid + 1;
+    const char* p = domain;
+    while (p != nullptr) {
+        int low = 0;
+        int high = (int)BUILTIN_BLOCKLIST_COUNT - 1;
+        while (low <= high) {
+            int mid = low + (high - low) / 2;
+            const char* midDomain = (const char*)pgm_read_ptr(&(BUILTIN_BLOCKLIST[mid]));
+            int cmp = strcasecmp(p, midDomain);
+            if (cmp == 0) return true;
+            if (cmp < 0) high = mid - 1;
+            else low = mid + 1;
+        }
+        p = strchr(p, '.');
+        if (p) p++; // Advance past '.' to test parent domain (e.g. ad.doubleclick.net -> doubleclick.net)
     }
     return false;
 }

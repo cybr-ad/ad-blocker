@@ -53,6 +53,8 @@ struct PendingQuery {
     uint16_t qtype = 1;
     uint32_t sendTime = 0;
     bool retriedSecondary = false;
+    uint16_t packetLen = 0;
+    uint8_t packet[384];
 };
 
 struct CacheEntry {
@@ -125,7 +127,7 @@ private:
     uint32_t snoozeUntilMillis = 0;
 
     bool parseDnsQuestion(const uint8_t* buf, size_t len, size_t& offset, String& outDomain, uint16_t& outQtype);
-    void sendSinkholeResponse(const uint8_t* queryBuf, size_t queryLen, size_t questionEnd, const IPAddress& clientIp, uint16_t clientPort, uint16_t id, uint16_t qtype);
+    void sendSinkholeResponse(const uint8_t* queryBuf, size_t queryLen, size_t questionEnd, const IPAddress& clientIp, uint16_t clientPort, uint16_t id, uint16_t qtype, bool nxdomain = false);
     void logQuery(const IPAddress& clientIp, const String& clientMac, const String& domain, uint16_t qtype, QueryVerdict verdict, uint16_t durationMs);
 
     int findCache(const String& domain, uint16_t qtype);
