@@ -160,12 +160,16 @@ public:
         String s = d;
         s.trim();
         s.toLowerCase();
+        if (s.startsWith("||")) s = s.substring(2);
+        if (s.endsWith("^")) s = s.substring(0, s.length() - 1);
         if (s.startsWith("http://")) s = s.substring(7);
         if (s.startsWith("https://")) s = s.substring(8);
         int slash = s.indexOf('/');
         if (slash != -1) s = s.substring(0, slash);
         int colon = s.indexOf(':');
         if (colon != -1) s = s.substring(0, colon);
+        if (s.startsWith("*.")) s = s.substring(2);
+        if (s.startsWith(".")) s = s.substring(1);
         if (s.startsWith("www.")) s = s.substring(4);
         return s;
     }

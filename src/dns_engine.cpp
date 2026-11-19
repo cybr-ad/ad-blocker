@@ -391,116 +391,126 @@ void DnsEngine::handle() {
 
     // 3. Multi-Packet Client Query Drain Loop (Up to 16 packets per tick)
     int clientBatch = 16;
-    int packetSize = 0;
-    while ((packetSize = clientUdp.parsePacket()) >= 12 && packetSize <= 512 && --clientBatch >= 0) {
+    while (clientBatch-- > 0) {
+        int packetSize = clientUdp.parsePacket();
+        if (packetSize <= 0) break;
+
+        if (packetSize < 12 || packetSize > 512) {
+            clientUdp.clear();
+            continue;
+        }
+
         uint8_t buf[512];
         int bytesRead = clientUdp.read(buf, sizeof(buf));
-        if (bytesRead >= 12) {
-            stats.totalBytesRx += bytesRead;
-            stats.totalPacketsRx++;
-            windowBytesRx += bytesRead;
-            windowPackets++;
+        if (bytesRead < 12) {
+            clientUdp.clear();
+            continue;
+        }
 
-            IPAddress clientIp = clientUdp.remoteIP();
-            uint16_t clientPort = clientUdp.remotePort();
-            String clientMac = resolveMac(clientIp);
+        stats.totalBytesRx += bytesRead;
+        stats.totalPacketsRx++;
+        windowBytesRx += bytesRead;
+        windowPackets++;
 
-            uint16_t id = (buf[0] << 8) | buf[1];
-            uint16_t flags = (buf[2] << 8) | buf[3];
-            bool isQuery = ((flags & 0x8000) == 0);
+        IPAddress clientIp = clientUdp.remoteIP();
+        uint16_t clientPort = clientUdp.remotePort();
+        String clientMac = resolveMac(clientIp);
 
-            if (isQuery) {
-                stats.totalQueries++;
-                size_t questionEnd = 0;
-                String domain;
-                uint16_t qtype = 1;
+        uint16_t id = (buf[0] << 8) | buf[1];
+        uint16_t flags = (buf[2] << 8) | buf[3];
+        bool isQuery = ((flags & 0x8000) == 0);
 
-                if (parseDnsQuestion(buf, bytesRead, questionEnd, domain, qtype)) {
-                    bool blocked = false;
-                    bool isCanary = (domain == "use-application-dns.net");
-                    AppConfig& cfg = configMgr.getConfig();
+        if (isQuery) {
+            stats.totalQueries++;
+            size_t questionEnd = 0;
+            String domain;
+            uint16_t qtype = 1;
 
-                    if (isCanary) {
-                        // Mozilla Firefox DoH Canary Domain: returns NXDOMAIN to force Firefox to disable DoH
+            if (parseDnsQuestion(buf, bytesRead, questionEnd, domain, qtype)) {
+                bool blocked = false;
+                bool isCanary = (domain == "use-application-dns.net");
+                AppConfig& cfg = configMgr.getConfig();
+
+                if (isCanary) {
+                    // Mozilla Firefox DoH Canary Domain: returns NXDOMAIN to force Firefox to disable DoH
+                    blocked = true;
+                } else if (isDohBootstrapDomain(domain)) {
+                    // Block DoH bootstrap servers so Chromium/Brave/Edge immediately fail over to system DNS
+                    blocked = true;
+                } else if (cfg.blockingEnabled && !isSnoozed()) {
+                    if (configMgr.isCustomWhitelisted(domain)) {
+                        blocked = false;
+                    } else if (configMgr.isCustomBlacklisted(domain)) {
                         blocked = true;
-                    } else if (isDohBootstrapDomain(domain)) {
-                        // Block DoH bootstrap servers so Chromium/Brave/Edge immediately fail over to system DNS
+                    } else if (isDomainBlockedBuiltin(domain.c_str())) {
                         blocked = true;
-                    } else if (cfg.blockingEnabled && !isSnoozed()) {
-                        if (configMgr.isCustomWhitelisted(domain)) {
-                            blocked = false;
-                        } else if (configMgr.isCustomBlacklisted(domain)) {
-                            blocked = true;
-                        } else if (isDomainBlockedBuiltin(domain.c_str())) {
-                            blocked = true;
-                        }
                     }
+                }
 
-                    recordClientQuery(clientIp, blocked, bytesRead);
-                    recordDomainRank(domain, blocked);
+                recordClientQuery(clientIp, blocked, bytesRead);
+                recordDomainRank(domain, blocked);
 
-                    if (blocked) {
-                        stats.blockedQueries++;
-                        sendSinkholeResponse(buf, bytesRead, questionEnd, clientIp, clientPort, id, qtype, isCanary);
-                        logQuery(clientIp, clientMac, domain, qtype, VERDICT_BLOCKED, 0);
+                if (blocked) {
+                    stats.blockedQueries++;
+                    sendSinkholeResponse(buf, bytesRead, questionEnd, clientIp, clientPort, id, qtype, isCanary);
+                    logQuery(clientIp, clientMac, domain, qtype, VERDICT_BLOCKED, 0);
+                } else {
+                    // Check local cache
+                    int cIdx = findCache(domain, qtype);
+                    if (cIdx >= 0) {
+                        stats.cachedQueries++;
+                        uint8_t cacheBuf[512];
+                        memcpy(cacheBuf, cache[cIdx].data, cache[cIdx].dataLen);
+                        cacheBuf[0] = (uint8_t)(id >> 8);
+                        cacheBuf[1] = (uint8_t)(id & 0xFF);
+
+                        clientUdp.beginPacket(clientIp, clientPort);
+                        clientUdp.write(cacheBuf, cache[cIdx].dataLen);
+                        clientUdp.endPacket();
+
+                        stats.totalBytesTx += cache[cIdx].dataLen;
+                        stats.totalPacketsTx++;
+                        windowBytesTx += cache[cIdx].dataLen;
+                        windowPackets++;
+
+                        logQuery(clientIp, clientMac, domain, qtype, VERDICT_CACHED, 1);
                     } else {
-                        // Check local cache
-                        int cIdx = findCache(domain, qtype);
-                        if (cIdx >= 0) {
-                            stats.cachedQueries++;
-                            uint8_t cacheBuf[512];
-                            memcpy(cacheBuf, cache[cIdx].data, cache[cIdx].dataLen);
-                            cacheBuf[0] = (uint8_t)(id >> 8);
-                            cacheBuf[1] = (uint8_t)(id & 0xFF);
+                        // Forward query to upstream DNS
+                        stats.forwardQueries++;
+                        uint16_t upId = nextUpstreamId++;
+                        if (nextUpstreamId > 60000) nextUpstreamId = 1000;
 
-                            clientUdp.beginPacket(clientIp, clientPort);
-                            clientUdp.write(cacheBuf, cache[cIdx].dataLen);
-                            clientUdp.endPacket();
+                        size_t slot = upId % MAX_PENDING;
+                        pendingQueries[slot].active = true;
+                        pendingQueries[slot].upstreamId = upId;
+                        pendingQueries[slot].origId = id;
+                        pendingQueries[slot].clientIp = clientIp;
+                        pendingQueries[slot].clientMac = clientMac;
+                        pendingQueries[slot].clientPort = clientPort;
+                        pendingQueries[slot].domain = domain;
+                        pendingQueries[slot].qtype = qtype;
+                        pendingQueries[slot].sendTime = millis();
+                        pendingQueries[slot].retriedSecondary = false;
 
-                            stats.totalBytesTx += cache[cIdx].dataLen;
-                            stats.totalPacketsTx++;
-                            windowBytesTx += cache[cIdx].dataLen;
-                            windowPackets++;
+                        buf[0] = (uint8_t)(upId >> 8);
+                        buf[1] = (uint8_t)(upId & 0xFF);
 
-                            logQuery(clientIp, clientMac, domain, qtype, VERDICT_CACHED, 1);
-                        } else {
-                            // Forward query to upstream DNS
-                            stats.forwardQueries++;
-                            uint16_t upId = nextUpstreamId++;
-                            if (nextUpstreamId > 60000) nextUpstreamId = 1000;
+                        pendingQueries[slot].packetLen = (bytesRead <= (int)sizeof(pendingQueries[slot].packet)) ? bytesRead : sizeof(pendingQueries[slot].packet);
+                        memcpy(pendingQueries[slot].packet, buf, pendingQueries[slot].packetLen);
 
-                            size_t slot = upId % MAX_PENDING;
-                            pendingQueries[slot].active = true;
-                            pendingQueries[slot].upstreamId = upId;
-                            pendingQueries[slot].origId = id;
-                            pendingQueries[slot].clientIp = clientIp;
-                            pendingQueries[slot].clientMac = clientMac;
-                            pendingQueries[slot].clientPort = clientPort;
-                            pendingQueries[slot].domain = domain;
-                            pendingQueries[slot].qtype = qtype;
-                            pendingQueries[slot].sendTime = millis();
-                            pendingQueries[slot].retriedSecondary = false;
-
-                            buf[0] = (uint8_t)(upId >> 8);
-                            buf[1] = (uint8_t)(upId & 0xFF);
-
-                            pendingQueries[slot].packetLen = (bytesRead <= (int)sizeof(pendingQueries[slot].packet)) ? bytesRead : sizeof(pendingQueries[slot].packet);
-                            memcpy(pendingQueries[slot].packet, buf, pendingQueries[slot].packetLen);
-
-                            IPAddress upstreamIp;
-                            if (!upstreamIp.fromString(cfg.upstreamDns1)) {
-                                upstreamIp = IPAddress(1, 1, 1, 1);
-                            }
-
-                            upstreamUdp.beginPacket(upstreamIp, 53);
-                            upstreamUdp.write(buf, bytesRead);
-                            upstreamUdp.endPacket();
-
-                            stats.totalBytesTx += bytesRead;
-                            stats.totalPacketsTx++;
-                            windowBytesTx += bytesRead;
-                            windowPackets++;
+                        IPAddress upstreamIp;
+                        if (!upstreamIp.fromString(cfg.upstreamDns1)) {
+                            upstreamIp = IPAddress(1, 1, 1, 1);
                         }
+
+                        upstreamUdp.beginPacket(upstreamIp, 53);
+                        upstreamUdp.write(buf, bytesRead);
+                        upstreamUdp.endPacket();
+
+                        stats.totalBytesTx += bytesRead;
+                        stats.totalPacketsTx++;
+                        windowBytesTx += bytesRead;
+                        windowPackets++;
                     }
                 }
             }
@@ -509,62 +519,82 @@ void DnsEngine::handle() {
 
     // 4. Multi-Packet Upstream Response Drain Loop (Up to 16 packets per tick)
     int upBatch = 16;
-    int upPacketSize = 0;
-    while ((upPacketSize = upstreamUdp.parsePacket()) >= 12 && upPacketSize <= 512 && --upBatch >= 0) {
+    while (upBatch-- > 0) {
+        int upPacketSize = upstreamUdp.parsePacket();
+        if (upPacketSize <= 0) break;
+
+        if (upPacketSize < 12 || upPacketSize > 512) {
+            upstreamUdp.clear();
+            continue;
+        }
+
         uint8_t upBuf[512];
         int upRead = upstreamUdp.read(upBuf, sizeof(upBuf));
-        if (upRead >= 12) {
-            stats.totalBytesRx += upRead;
-            stats.totalPacketsRx++;
-            windowBytesRx += upRead;
+        if (upRead < 12) {
+            upstreamUdp.clear();
+            continue;
+        }
+
+        stats.totalBytesRx += upRead;
+        stats.totalPacketsRx++;
+        windowBytesRx += upRead;
+        windowPackets++;
+
+        uint16_t upId = (upBuf[0] << 8) | upBuf[1];
+        size_t slot = upId % MAX_PENDING;
+
+        if (pendingQueries[slot].active && pendingQueries[slot].upstreamId == upId) {
+            uint16_t duration = (uint16_t)(millis() - pendingQueries[slot].sendTime);
+            stats.upstreamLatencyMs = duration;
+
+            upBuf[0] = (uint8_t)(pendingQueries[slot].origId >> 8);
+            upBuf[1] = (uint8_t)(pendingQueries[slot].origId & 0xFF);
+
+            clientUdp.beginPacket(pendingQueries[slot].clientIp, pendingQueries[slot].clientPort);
+            clientUdp.write(upBuf, upRead);
+            clientUdp.endPacket();
+
+            stats.totalBytesTx += upRead;
+            stats.totalPacketsTx++;
+            windowBytesTx += upRead;
             windowPackets++;
 
-            uint16_t upId = (upBuf[0] << 8) | upBuf[1];
-            size_t slot = upId % MAX_PENDING;
+            logQuery(pendingQueries[slot].clientIp, pendingQueries[slot].clientMac, pendingQueries[slot].domain, 
+                     pendingQueries[slot].qtype, VERDICT_ALLOWED, duration);
 
-            if (pendingQueries[slot].active && pendingQueries[slot].upstreamId == upId) {
-                uint16_t duration = (uint16_t)(millis() - pendingQueries[slot].sendTime);
-                stats.upstreamLatencyMs = duration;
-
-                upBuf[0] = (uint8_t)(pendingQueries[slot].origId >> 8);
-                upBuf[1] = (uint8_t)(pendingQueries[slot].origId & 0xFF);
-
-                clientUdp.beginPacket(pendingQueries[slot].clientIp, pendingQueries[slot].clientPort);
-                clientUdp.write(upBuf, upRead);
-                clientUdp.endPacket();
-
-                stats.totalBytesTx += upRead;
-                stats.totalPacketsTx++;
-                windowBytesTx += upRead;
-                windowPackets++;
-
-                logQuery(pendingQueries[slot].clientIp, pendingQueries[slot].clientMac, pendingQueries[slot].domain, 
-                         pendingQueries[slot].qtype, VERDICT_ALLOWED, duration);
-
-                uint16_t ancount = (upBuf[6] << 8) | upBuf[7];
-                if (ancount > 0) {
-                    addCache(pendingQueries[slot].domain, pendingQueries[slot].qtype, 300, upBuf, upRead);
-                }
-
-                pendingQueries[slot].active = false;
+            uint16_t ancount = (upBuf[6] << 8) | upBuf[7];
+            if (ancount > 0) {
+                addCache(pendingQueries[slot].domain, pendingQueries[slot].qtype, 300, upBuf, upRead);
             }
+
+            pendingQueries[slot].active = false;
         }
     }
 
-    // 5. Secondary DNS Failover check: retry if pending > 650ms
+    // 5. Upstream DNS Failover & Loss-Recovery check: retry if pending > 650ms
     for (size_t i = 0; i < MAX_PENDING; i++) {
         if (pendingQueries[i].active) {
             uint32_t age = now - pendingQueries[i].sendTime;
             AppConfig& cfg = configMgr.getConfig();
 
-            if (!pendingQueries[i].retriedSecondary && age > 650 && cfg.upstreamDns2.length() > 0) {
-                IPAddress secIp;
-                if (secIp.fromString(cfg.upstreamDns2) && pendingQueries[i].packetLen > 0) {
-                    upstreamUdp.beginPacket(secIp, 53);
+            if (!pendingQueries[i].retriedSecondary && age > 650 && pendingQueries[i].packetLen > 0) {
+                IPAddress targetIp;
+                bool hasTarget = false;
+                if (cfg.upstreamDns2.length() > 0 && targetIp.fromString(cfg.upstreamDns2)) {
+                    hasTarget = true;
+                } else if (targetIp.fromString(cfg.upstreamDns1)) {
+                    hasTarget = true;
+                } else {
+                    targetIp = IPAddress(1, 1, 1, 1);
+                    hasTarget = true;
+                }
+
+                if (hasTarget) {
+                    upstreamUdp.beginPacket(targetIp, 53);
                     upstreamUdp.write(pendingQueries[i].packet, pendingQueries[i].packetLen);
                     upstreamUdp.endPacket();
-                    pendingQueries[i].retriedSecondary = true;
                 }
+                pendingQueries[i].retriedSecondary = true;
             } else if (age > 4000) {
                 pendingQueries[i].active = false; // Expire query
             }
