@@ -4,11 +4,15 @@
 [![Ethernet](https://img.shields.io/badge/Ethernet-LAN8720A%20100Mbps-brightgreen.svg)]()
 [![DNS Sinkhole](https://img.shields.io/badge/DNS-Port%2053%20(UDP)-red.svg)]()
 [![Web Dashboard](https://img.shields.io/badge/Web%20Dashboard-Port%2080%20(HTTP)-purple.svg)]()
-[![License](https://img.shields.io/badge/License-MIT-green.svg)]()
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-A standalone, plug-and-play **hardware ad blocker and privacy shield** powered by the **Wireless-Tag WT32-ETH01 (ESP32 + LAN8720A 100Mbps Ethernet)** module.
+A high-performance, plug-and-play **hardware ad blocker, tracker sinkhole, and privacy shield** powered by the **Wireless-Tag WT32-ETH01 (ESP32 + LAN8720A 100Mbps Ethernet)** module.
 
-Once connected to any LAN port on your router, it acts as the primary DNS server for your entire home. Every device connected to your Wi-Fi (Android, iPhone, Windows, Linux, and Smart Home gadgets) automatically blocks ads, telemetry, and tracking SDKs with **zero browser extensions or software installations required**.
+Once connected to any LAN port on your router, it acts as the primary DNS server for your entire home. Every device connected to your Wi-Fi (Android, iPhone, Windows, Mac, Linux, Smart TVs, and IoT gadgets) automatically blocks ads, telemetry, and tracking SDKs with **zero browser extensions or client software required**.
+
+<p align="center">
+  <img src="assets/dashboard.png" alt="WT32-ETH01 Real-Time Cyber Web Dashboard" width="100%">
+</p>
 
 ```
                            +------------------------+
@@ -29,6 +33,19 @@ Once connected to any LAN port on your router, it acts as the primary DNS server
         [Android Phone]         [iPhone / iPad]        [Windows / Linux]
      (In-app ads blocked)     (Trackers blocked)     (Telemetry blocked)
 ```
+
+---
+
+## 🌟 Key Features
+
+* ⚡ **Ultra-Fast Hardware DNS Engine:** Zero-allocation UDP packet parser with an in-memory RAM cache answering cached queries in **< 1 ms**.
+* 🌐 **Dual-Stack DNS Sinkholing:** Returns RFC-compliant `0.0.0.0` (A record) and `::` (AAAA record) with 300s TTL to prevent DNS retry floods.
+* 🌲 **Hierarchical Subdomain Matching:** Blocking `doubleclick.net` automatically blocks `ad.doubleclick.net`, `secure.ad.doubleclick.net`, and all subdomains.
+* 🛡️ **DoH / Canary Domain Protection:** Intercepts Firefox and Chrome DoH bootstrap canary queries (`use-application-dns.net`) with `NXDOMAIN` so browsers respect your local LAN DNS.
+* 💾 **Chunked NVS Persistent Storage:** Custom whitelist and blacklist rules are partitioned into chunked non-volatile flash storage and survive reboots and power outages.
+* 🧹 **Adblock Plus & Hosts Syntax Auto-Sanitizer:** Paste raw Adblock rules (`||ads.example.com^`, `*.tracker.com`), Hosts format (`0.0.0.0 ads.com`), or plain domains—the engine auto-sanitizes them instantly.
+* 📊 **Live Cyber Web Dashboard:** Beautiful pitch-black interface with rolling 45-second traffic curves, live query terminal, active client telemetry, and silicon temperature monitoring.
+* ⚡ **11-Resolver WAN Benchmark:** 1-click latency benchmark across AdGuard, Cloudflare, Quad9, Google, Control D, OpenDNS FamilyShield, and more with lowest-ping auto-sort.
 
 ---
 
@@ -77,7 +94,7 @@ Connect your FTDI or USB-to-UART programmer (CH340, CP2102, FT232R) to the WT32-
 ### Step 3: Set Board IP as Router DNS (Crucial)
 To enable network-wide blocking across all phones, PCs, and TVs:
 
-1. Open your router's setup page in a browser (e.g. `http://192.168.1.1` or `http://192.168.1.1`).
+1. Open your router's setup page in a browser (e.g. `http://192.168.1.1` or your router IP).
 2. Go to **DHCP Settings**:
    * **TP-Link (Archer):** *Advanced ➔ Network ➔ DHCP Server*
    * **Asus (Asuswrt):** *LAN ➔ DHCP Server*
@@ -99,13 +116,21 @@ To enable network-wide blocking across all phones, PCs, and TVs:
 Open your browser and navigate to:
 👉 **`http://192.168.1.95`** *(Use plain `http://`, not `https://`)*
 
+<p align="center">
+  <img src="assets/dashboard.png" alt="Live Real-Time DNS Traffic and Telemetry" width="100%">
+</p>
+
 ### Key Dashboard Features:
-* **Real-time DNS Stats:** Live total queries, blocked ads, block percentage, cache hits, and active client count.
-* **Rolling 45-Second Latency Graph:** Visual traffic and upstream latency stream.
+* **Real-time DNS Stats:** Live total queries handled, blocked ads & trackers, sinkhole percentage, RAM cache hits (< 1 ms latency), active LAN clients, and rule counts.
+* **Rolling 45-Second Latency Graph:** Smooth spline stream of allowed vs blocked queries and upstream DNS ping.
 * **Network Devices Table:** Automatically discovers devices on your LAN with per-client query counters and block rates.
 * **Terminal Mode:** Live streaming feed of every DNS request on your network (domain, client IP, query type, latency, and status).
-* **Rule Manager & Catalog:** Browse 400+ built-in rules, add custom whitelists/blacklists, or upload `.txt` / `.hosts` blocklists.
-* **1-Click Upstream DNS:** Switch between AdGuard DNS, Cloudflare, Quad9, Google, or custom DNS with built-in latency benchmark testing.
+* **Rule Manager & Catalog:** Browse 400+ built-in rules across categories (Mobile, Windows/Linux, Tuya IoT, Ad Networks, Trackers, Social Pixels), with custom whitelists and blacklists.
+* **1-Click Upstream DNS:** Switch between AdGuard DNS, Cloudflare, Quad9, Google, Control D, OpenDNS FamilyShield, or custom DNS with real-time benchmark testing.
+
+<p align="center">
+  <img src="assets/rules_catalog.png" alt="Rule Manager & Category Catalog" width="100%">
+</p>
 
 ---
 
