@@ -116,10 +116,6 @@ To enable network-wide blocking across all phones, PCs, and TVs:
 Open your browser and navigate to:
 👉 **`http://192.168.1.95`** *(Use plain `http://`, not `https://`)*
 
-<p align="center">
-  <img src="assets/dashboard.png" alt="Live Real-Time DNS Traffic and Telemetry" width="100%">
-</p>
-
 ### Key Dashboard Features:
 * **Real-time DNS Stats:** Live total queries handled, blocked ads & trackers, sinkhole percentage, RAM cache hits (< 1 ms latency), active LAN clients, and rule counts.
 * **Rolling 45-Second Latency Graph:** Smooth spline stream of allowed vs blocked queries and upstream DNS ping.
